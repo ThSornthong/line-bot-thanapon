@@ -8,49 +8,87 @@ const KEY = 'uQHkfL7uxfYm9hv'
 const SECRET = '4pP0RdTeIajLI38FaubzfTc7z'
 const APPID = 'thanapon1195'
 var microgear = MicroGear.create({
-    gearkey : KEY,
-    gearsecret : SECRET,
-    alias:'app'
+  gearkey: KEY,
+  gearsecret: SECRET,
+  alias: 'app'
 });
- 
-microgear.on('connected', function() {
-    console.log('Connected...');
-    microgear.setname("APP");
-    microgear.subscribe('/gearname/Count');
-    microgear.subscribe('/gearname/mygear');
+
+microgear.on('connected', function () {
+  console.log('Connected...');
+  microgear.setname("APP");
+  microgear.subscribe('/gearname/Count');
+  microgear.subscribe('/gearname/mygear');
 });
-microgear.on('message', function(topic,body) {
-    //console.log('incoming : '+topic+' : '+body);
-    if (topic == '/thanapon1195/gearname/Count') {
-      person = Number(body)
+microgear.on('message', function (topic, body) {
+  //console.log('incoming : '+topic+' : '+body);
+  if (topic == '/thanapon1195/gearname/Count') {
+    person = Number(body)
+  }
+  if (topic == '/thanapon1195/gearname/mygear') {
+    power = Number(body)
+    if (Number(body) > 0 && statusTask == false) {
+      task.start();
     }
-    if(topic == '/thanapon1195/gearname/mygear'){
-      electStatus = body
-      if(body == 'on')
-        sendStatus = false
+    if (Number(body) == 0) {
+      if (sendStatus == true) {
+        notic('ปิดไฟแล้ว')
+      }
+      task.stop();
+      sendStatus = false
+      statusTask = false
     }
+  }
 });
- 
-microgear.on('closed', function() {
-    console.log('Closed...');
+
+microgear.on('closed', function () {
+  console.log('Closed...');
 });
 
 microgear.connect(APPID);
 //end
-
+var sec = 0
 var person = 0
-var electStatus = ""
+var power = 0
 var sendStatus = false
+var statusTask = false
 
-cron.schedule('* */5 * * * *', () => {
-  console.log('running a task every minute');
-  console.log(person, electStatus.toString());
-  if(person == 0 && electStatus == 'on' && sendStatus == false){    
-    notic()
-    sendStatus = true
+
+var task = cron.schedule('*/5 * * * * *', () => {
+  statusTask = true
+  console.log('ตรวจสอบ');
+  console.log('จำนวนคน: ', person, '  การใช้ไฟฟ้า: ', power.toString());
+  console.log('การส่งข้อความ', sendStatus);
+  if ((person == 0) && (power > 0) && (sendStatus == false)) {
+    console.log('เริ่มจับเวลา');
+    check.start();
+    task.stop();
   }
-  
+
+}, {
+  scheduled: false
 });
+
+var check = cron.schedule('*/1 * * * * *', () => {
+  console.log(sec + ' วินาที');
+  if (power == 0) {
+    check.stop();
+    sec = 0;
+    console.log('หยุดจับเวลา');
+  }
+  if (sec == 20) {
+    notic('มีไฟเปิดทิ้งไว้')
+    sendStatus = true
+    console.log(sendStatus);
+    task.start();
+    sec = 0;
+    check.stop();
+
+  }
+  sec++
+}, {
+  scheduled: false
+});
+
 
 
 const LINE_MESSAGING_API = "https://api.line.me/v2/bot/message";
@@ -61,27 +99,27 @@ const LINE_HEADER = {
 
 
 
-notic()
+var d = new Date()
 
-function notic(){
-    return request({
-        method: "POST",
-        uri: `${LINE_MESSAGING_API}/push`,
-        headers: LINE_HEADER,
-        body: JSON.stringify({
-          to: 'Ub9e1f324caf9d622f16e7e8623f70158',
-          messages: [{
-              type: "text",
-              text: "LINE test"
-          }]
-        })
-      },(err, httpResponse, body) => {
-        if (err) {
-          console.log(err)
-        } else {
-          console.log(body)
-        }
-      })
-    
+function notic(text) {
+  return request({
+    method: "POST",
+    uri: `${LINE_MESSAGING_API}/push`,
+    headers: LINE_HEADER,
+    body: JSON.stringify({
+      to: 'Ub9e1f324caf9d622f16e7e8623f70158',
+      messages: [{
+        type: "text",
+        text: text + '\n' + new Date()
+      }]
+    })
+  }, (err, httpResponse, body) => {
+    if (err) {
+      console.log(err)
+    } else {
+      console.log(body)
+    }
+  })
+
 }
 
