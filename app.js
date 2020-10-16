@@ -1,5 +1,12 @@
 const request = require('request')
 var cron = require('node-cron');
+var firebase = require("firebase");
+firebase.initializeApp({
+  serviceAccount: "line-thanapons-firebase-adminsdk-r2qly-4976068a30",
+  databaseURL: "https://line-thanapons.firebaseio.com"
+});
+var db = firebase.database();
+var ref = db.ref("/data");
 
 //NETPIE
 var MicroGear = require('microgear')
@@ -58,7 +65,7 @@ var task = cron.schedule('*/5 * * * * *', () => {
   console.log('ตรวจสอบ');
   console.log('จำนวนคน: ', person, '  การใช้ไฟฟ้า: ', power.toString());
   console.log('การส่งข้อความ', sendStatus);
-  if ((person == 0) && (power > 0) && (sendStatus == false)) {
+  if ((person < 0) && (power > 0) && (sendStatus == false)) {
     console.log('เริ่มจับเวลา');
     check.start();
     task.stop();
@@ -100,6 +107,10 @@ const LINE_HEADER = {
 
 
 var d = new Date()
+var data
+ref.once("value", function(snapshot) {
+  data = snapshot.val();
+});
 
 function notic(text) {
   return request({
@@ -107,7 +118,7 @@ function notic(text) {
     uri: `${LINE_MESSAGING_API}/push`,
     headers: LINE_HEADER,
     body: JSON.stringify({
-      to: 'Ub9e1f324caf9d622f16e7e8623f70158',
+      to: data.room417.userId,
       messages: [{
         type: "text",
         text: text + '\n' + new Date()
